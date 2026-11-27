@@ -16,11 +16,15 @@ jobs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
       - uses: actions/checkout@v4
-      - name: zip を展開
+        with:
+          fetch-depth: 0
+      - name: zip を展開（いちばん新しくアップロードした zip を使う）
         shell: bash
         run: |
-          if [ -f muiimu-shabekura.zip ]; then
-            unzip -q -o muiimu-shabekura.zip -d /tmp/src
+          ZIP=$(git log --format= --name-only --diff-filter=AM -- '*.zip' | grep -m1 . || true)
+          echo "使う zip: $ZIP"
+          if [ -n "$ZIP" ] && [ -f "$ZIP" ]; then
+            rm -rf /tmp/src && unzip -q -o "$ZIP" -d /tmp/src
             cp -r /tmp/src/muiimu-shabekura/. .
           fi
       - uses: actions/setup-node@v4
@@ -36,7 +40,6 @@ jobs:
           OWNER_PASSWORD: ${{ secrets.OWNER_PASSWORD }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "::warning::CLOUDFLARE_API_TOKEN が未設定"
             echo "url=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -54,11 +57,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: zip を展開
+        with:
+          fetch-depth: 0
+      - name: zip を展開（いちばん新しくアップロードした zip を使う）
         shell: bash
         run: |
-          if [ -f muiimu-shabekura.zip ]; then
-            unzip -q -o muiimu-shabekura.zip -d /tmp/src
+          ZIP=$(git log --format= --name-only --diff-filter=AM -- '*.zip' | grep -m1 . || true)
+          echo "使う zip: $ZIP"
+          if [ -n "$ZIP" ] && [ -f "$ZIP" ]; then
+            rm -rf /tmp/src && unzip -q -o "$ZIP" -d /tmp/src
             cp -r /tmp/src/muiimu-shabekura/. .
           fi
       - uses: actions/setup-java@v4
@@ -76,10 +83,13 @@ jobs:
           if [ -z "$URL" ]; then URL="${{ vars.SERVER_URL }}"; fi
           gradle assembleRelease --no-daemon -PSERVER_URL="$URL" -PVERSION_CODE=${{ github.run_number }}
           cp app/build/outputs/apk/release/app-release.apk ../MuiimuShabekura.apk
+          cp app/build/outputs/apk/release/app-release.apk ../MuiimuShabekura-v1.0.${{ github.run_number }}.apk
       - name: リリースに置く
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: むいいむ しゃべくら v1.0.${{ github.run_number }}
-          files: MuiimuShabekura.apk
+          files: |
+            MuiimuShabekura.apk
+            MuiimuShabekura-v1.0.${{ github.run_number }}.apk
           make_latest: true
